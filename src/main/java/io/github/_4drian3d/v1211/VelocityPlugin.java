@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.mojang.brigadier.Command;
 import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.event.EventManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
@@ -33,21 +34,21 @@ public final class VelocityPlugin {
 		final var node = BrigadierCommand.literalArgumentBuilder("test1211")
 			.then(BrigadierCommand.literalArgumentBuilder("unregister")
 				.executes(ctx -> {
-					eventManager.unregisterListeners(this);
+					eventManager.unregisterListeners(VelocityPlugin.this);
 					ctx.getSource().sendMessage(miniMessage().deserialize("<rainbow:!>Unregistered listeners"));
 					return Command.SINGLE_SUCCESS;
 				})
             )
 			.then(BrigadierCommand.literalArgumentBuilder("register")
 				.executes(ctx -> {
-					eventManager.register(this, this);
+					eventManager.register(VelocityPlugin.this, VelocityPlugin.this);
 					ctx.getSource().sendMessage(miniMessage().deserialize("<rainbow>Registered main class listener"));
 					return Command.SINGLE_SUCCESS;
 				})
             )
 			.then(BrigadierCommand.literalArgumentBuilder("fire")
 				.executes(ctx -> {
-                    eventManager.fireAndForget(eventManager);
+                    eventManager.fireAndForget(new TestEvent(ctx.getSource()));
                     ctx.getSource().sendMessage(miniMessage().deserialize("<green>Event executed"));
                     return Command.SINGLE_SUCCESS;
                 })
@@ -55,10 +56,13 @@ public final class VelocityPlugin {
         commandManager.register(new BrigadierCommand(node));
 	}
 
-    public record TestEvent() {}
+    public record TestEvent(CommandSource executor) {}
 
 	@Subscribe
-	public void onTestEvent(TestEvent event) {
-		logger.info(miniMessage().deserialize("<red>Event executed " + System.currentTimeMillis()));
+	public void onTestEvent(final TestEvent event) {
+		final var message = miniMessage().deserialize("<red>Event executed at " + System.currentTimeMillis());
+		logger.info(message);
+		event.executor.sendMessage(message);
+
 	}
 }
